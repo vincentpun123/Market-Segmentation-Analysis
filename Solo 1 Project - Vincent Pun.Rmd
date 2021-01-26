@@ -1,0 +1,1005 @@
+---
+title: "Solo 1 Project"
+author: "Vincent Pun"
+date: "1/17/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r seetwd Libary numdata}
+#setwd load data --------------------------------------------------------------
+setwd("~/Documents/Northwestern/MSDS 450/Solo 1")
+
+
+load("apphappyData.RData")
+ls()
+## [1] "apphappy.2.labs.frame" "apphappy.2.num.frame" ##
+
+#Library will load the existing loaded package. -----------------------------------
+#Require will install or update when the package is not in our repository
+
+require(cluster)
+require(useful)
+require(Hmisc)
+require(plot3D)
+library(HSAUR)
+library(MVA)
+library(HSAUR2)
+library(fpc)
+library(mclust)
+library(lattice)
+library(car)
+library(digest)
+
+#numdata <- apphappy.3.num.frame----------------------------------------
+numdata <- apphappy.3.num.frame
+str(numdata)
+paste("numdata has 1800 observations and 89 variables. our goal will be to reduce the dimensionality of this dataset.")
+```
+
+q5r1 = no to shazam, shazam free, NA
+q12 = of your apps, what % were free to download? 
+q57 = please indicate your gender 
+
+```{r Plot Missing Data Only}
+library(DataExplorer, quietly = TRUE)
+plot_missing(numdata, missing_only = TRUE, ggtheme = theme_grey())
+```
+
+
+```{r EDA Skeleton}
+### Following are EDA--------------------------------------------------
+
+str(numdata)
+head(numdata)
+tail(numdata)
+some(numdata,5)
+
+summary(numdata)
+a=table(numdata$q1)
+a
+
+a=table(numdata$q57) #gender
+a
+names(a)
+barplot(a)
+library(plyr) 
+temp <- count(numdata, c('numdata$q1','numdata$q2r1')) 
+str(temp)
+
+b=table(numdata$q1,numdata$q2r1)
+b
+barplot(b)
+hist(numdata$q1) #age buckets
+hist(numdata$q2r1) #iphone or not 
+```
+
+q24. Please tell us how much you agree or disagree with each of the following statements. (Select
+one across for each)
+codes:
+1 - Agree Strongly
+2 - Agree
+3- Agree Somewhat
+4- Disagree Somewhat
+5 - Disagree
+6 - Disagree Strongly
+
+r1. I try to keep up with technological developments
+r2. People often ask my advice when they are looking to buy technology or electronic products
+r3. I enjoy purchasing new gadgets and appliances
+r4. I think there is too much technology in everyday life
+r5. I enjoy using technology to give me more control over my life
+r6. I look for web tools and Apps that help me save time
+r7. Music is an important part of my life
+r8. I like learning more about my favorite TV shows when I’m not watching them
+r9. I think there is too much information out there today from the internet and sites like Facebook
+r10. I’m always checking on friends and family through Facebook or other networking websites
+r11. The internet makes it easier to keep in touch with family and friends
+r12. The internet makes it easy to avoid seeing or having to speak with family and friends
+
+
+q25. And how much do you agree or disagree with each of the following?
+coding:
+like q24
+Statements: (**RANDOMIZE**)
+r1. I consider myself an opinion leader
+r2. I like to stand out from others
+r3. I like to offer advice to others
+r4. I like to take the lead in decision making
+r5. I’m the first of my friends and family to try new things
+r6. Responsibility is overrated; I’d rather be told what to do
+r7. I like being in control
+r8. I’m a risk taker
+r9. I think of myself as creative
+r10. I am an optimistic person
+r11. I am very active and always on the go
+r12. I always feel stretched for time
+
+q26. And finally how much do you agree or disagree with each of these statements? (Select one
+across for each)
+coding:
+r3. I am always on the lookout for a bargain, discounts or deals
+r4. I derive enjoyment from any kind of shopping
+r5. I like package deals because I don’t have to do as much planning
+r6. I’m always shopping online
+r18. I fnd I’m ofen atracted to luxury brands.
+r7. I prefer to buy designer brands.
+r8. I can’t get enough Apps
+r9. It’s not the number of Apps you have but how cool they are that really matters
+r10. I love showing off my new Apps to others
+r11. My children have an impact on the Apps I download
+r12. It’s usually worth spending a few extra dollars to get extra App features
+r13. There’s no point in earning money if I’m not going to spend it
+r14. I am influenced by what’s hot and what’s not
+r15. I buy brands that reflect my style
+r16. I tend to make impulse purchases
+r17. Above all else, I think of my mobile phone as a source of entertainment
+
+questions 24, 25, 26 are attitudinal variables, sbquestions with numeric responses (beliefs ranging from strongly agree to strongly disagree)
+since these can ultimately be averaged, they are extracted to see if they are all relevant data 
+
+goal: create market segment clusters for marketing schemes 
+
+```{r Subset 1 - All Questions - Q24 Tech Savviness, Q25 Leaadership, Q26 Shopping}
+### Creating subsets --------------------------------------------------
+
+#numsubr = q24 + q25 + q26 
+
+numsubr <- subset(numdata, select=
+                   c("q24r1","q24r2","q24r3","q24r4","q24r5","q24r6","q24r7","q24r8","q24r9",
+                     "q24r10","q24r11","q24r12",
+                     "q25r1","q25r2","q25r3","q25r4","q25r5","q25r6","q25r7","q25r8","q25r9",
+                     "q25r10","q25r11","q25r12",
+                     "q26r3","q26r4","q26r5","q26r6","q26r7","q26r8","q26r9","q26r10","q26r11",
+                     "q26r12","q26r13","q26r14","q26r15","q26r16","q26r17", "q26r18")) 
+
+numsub <- subset(numdata, select=
+c("q24r1","q24r2","q24r3","q24r4","q24r5","q24r6","q24r7","q24r8","q24r9",
+  "q24r10","q24r11","q24r12",
+  "q25r1","q25r2","q25r3","q25r4","q25r5","q25r6","q25r7","q25r8","q25r9",
+  "q25r10","q25r11","q25r12",
+  "q26r3","q26r4","q26r5","q26r6","q26r7","q26r8","q26r9","q26r10","q26r11",
+  "q26r12","q26r13","q26r14","q26r15","q26r16","q26r17", "q26r18")) 
+
+
+str(numsub)
+head(numsub)
+attach(numsub)
+
+?attach()
+
+```
+
+Pearson Correlation 
+With the visual help of a correlation plot, we see that there are certain questions that can be grouped together based on their similarity.
+
+Question 24 - Tech Savviness 12 to 4 features 
+Grouping similar questions: 
+
+1, 2, 3, 5, 6 ->  positive attitude towards technology 
+
+7,8 -> music/TV
+
+10, 11 -> Internet/Communications
+
+4, 9, 12 ->  negative aspects of technology (so theres some red in the corr plot)
+
+Question 25 - Leadership 
+1, 2, 3, 4, 5 ->  Leadership 
+
+7,8 -> Control
+
+9, 10, 11 -> Drive
+
+6, 12 ->  negative 
+
+Question 26 - Shopping 
+3, 4, 5, 6, 7 ->  bargain 
+8, 9, 10 -> show off
+11 -> children
+12, 13, 14 -> hot
+15, 16, 17, 18 ->  brand
+
+```{r Corr Plot Skeleton}
+#######################
+#### correlation plot##
+#######################
+require(corrplot)
+mcor <- cor(numsub)
+corrplot(mcor, method="shade", shade.col=NA, tl.col="black",tl.cex=0.5)
+summary(numsub)
+
+corrplot(cor(mcor),order='FPC', tl.cex = .6, tl.col = 'blue')
+corrplot(cor(mcor),order='hclust', tl.cex = .6, tl.col = 'blue')
+?corrplot
+
+```
+
+Peaks and Valleys Natural Clusters
+
+q24r1 - I try to keep up with technological developments 
+
+q24r2 - People often ask my advice when looking to buy technology or electronic products 
+
+```{r Peaks and Valleys Natural Clusters}
+#######################################################
+### check for peaks & valleys (ie) natural clusters ###
+#######################################################
+
+##  Create cuts:
+q24r1_c <- cut(q24r1, 6)
+q24r2_c <- cut(q24r2, 6)
+
+##  Calculate joint counts at cut levels:
+z <- table(q24r1_c, q24r2_c)
+z
+
+##  Plot as a 3D histogram:
+hist3D(z=z, border="black")
+
+##  Plot as a 2D heatmap:
+
+image2D(z=z, border="black")
+
+library(latticeExtra)
+
+cloud(z~q24r1_c+q24r2_c, numsub, panel.3d.cloud=panel.3dbars, col.facet='blue', 
+      xbase=0.4, ybase=0.4, scales=list(arrows=FALSE, col=1), 
+      par.settings = list(axis.line = list(col = "transparent")))
+```
+
+```{r PCA Plots, Identify Outliers}
+######################################
+############### PCA Plots ##############
+######################################
+
+pca <-princomp(numsub)
+plot(pca$scores[,1],pca$scores[,2])
+
+names(pca)
+str(pca)
+summary(pca)
+head(pca$scores)
+
+sort(pca$scores[,1])
+
+numsub["2367",]
+numsub["1307",]
+numsub["552",]
+numsub["2261",]
+numsub["431",]
+numsub["2176",]
+numsub["1083",]
+
+# Sort pca scores, see some outliers and their case ID numbers (identify outliers)
+sort(pca$scores[,1], decreasing = TRUE)
+
+#PARTICIPANT 1946 AND 243 SCORED 6 ON MANY QUESTIONS 
+numsub["1946",]
+numsub["243",]
+
+
+##  Create cuts:
+pcadf <- as.data.frame(pca$scores)
+pca1 <- cut(pcadf$Comp.1, 10)
+pca2 <- cut(pcadf$Comp.2, 10)
+
+
+##  Calculate joint counts at cut levels:
+z <- table(pca1, pca2)
+
+##  Plot as a 3D histogram:
+hist3D(z=z, border="black")
+```
+
+Use Scree Plot to determine how many clusters we should try with K-Means 
+```{r Scree Plots}
+###################################################
+### Create a 'scree' plot to determine the num of clusters
+#####################################################
+
+#Small distance ideal
+#elbow not very distinct, can be anything between 5 through 8 
+
+wssplot <- function(numsub, nc=15, seed=1234) {
+  wss <- (nrow(numsub)-1)*sum(apply(numsub,2,var))
+  for (i in 2:nc) {
+    set.seed(seed)
+    wss[i] <- sum(kmeans(numsub, centers=i)$withinss)}
+  plot(1:nc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares")} 
+
+wssplot(numsubr)
+```
+
+Conduct K-Means with five clusters using numsubr
+```{r K-Means 5 Clusters}
+#######################################################
+##########  k means with raw data with 5 clusters######
+#######################################################
+
+clusterresults <- kmeans(numsubr,5)
+
+#see how many people in each cluster 
+#452 258 434 383 273
+clusterresults$size
+
+#rsquare is 0.28311 
+rsquare <- clusterresults$betweenss/clusterresults$totss
+rsquare
+
+#cluster results 
+str(clusterresults)
+
+#K-Means Results 
+#We see overlapping clusters in this plot
+#We also see outliers int hsi plot (people who answered all 1 or all 6 (seen in cluster 2))
+#Not very cohesive
+plot(clusterresults, data=numsubr) 
+dev.off()
+
+#pg 220 (Chapman)
+#To find distance between ranks, we use an alternative to dist(), daisy() from clustetr package 
+#handle non-metric data like ranking ordering 
+
+dissE <- daisy(numsubr)
+names(dissE)
+dE2   <- dissE^2
+
+
+sk2   <- silhouette(clusterresults$cluster, dE2)
+str(sk2)
+
+#average silhouette width 0.14
+#some clusters are more cohesive (cluster 5 has 0.41)
+#clusters 1, 2, 4, 3 not very cohesive 
+
+plot(sk2)
+```
+
+**After Feature Engineering**
+
+```{r Derive Data}
+############################################################
+### Clustering for Likert scale - 'ordinal' data
+### 40 variables with 6 values (ie) 240 binary columns
+### For each pair of people, compute % match on 240 columns
+### Similarity metric is this % & do clustering
+
+### For Solo 1 we will use derived variable concept----
+### (ie) combining columns and 'pretend' continous data
+### then use clustering methods for the continuous data
+
+#############################################################
+##create 'derived' variables - means of similar variables ###----
+#############################################################
+
+attach(numsub)
+
+#QUESTION 24 A B C D (tech savvy)-----
+numsub$q24a <- (q24r1+q24r2+q24r3+q24r5+q24r6)/5 #POSITIVE ATTITUDE TOWARDS TECHNOLOGY
+numsub$q24b <- (q24r7+q24r8)/2 #MUSIC AND TV 
+numsub$q24c <- (q24r10+q24r11)/2 #INTERNET/COMMUNICATIONS
+
+#EXCLUDED
+numsub$q24d <- (q24r4+q24r9+q24r12)/3 #NEGATIVE ASPECTS TOWARDS TECH (NEGATIVE CORRELATION)
+
+#QUESTION 25 A B C D (leadership)-----
+numsub$q25a <- (q25r1+q25r2+q25r3+q25r4+q25r5)/5 #LEADERSHIP 
+numsub$q25b <- (q25r7+q25r8)/2 #CONTROL 
+numsub$q25c <- (q25r9+q25r10+q25r11)/3 #DRIVE 
+
+#EXCLUDED
+numsub$q25d <- (q25r6+q25r12)/2 #NEGATIVE 
+
+#QUESTION 26 A B C D E (shopping)-----
+numsub$q26a <- (q26r3+q26r4+q26r5+q26r6+q26r7)/5 #BARGAIN
+numsub$q26b <- (q26r8+q26r9+q26r10)/3 #SHOW OFF
+numsub$q26c <- q26r11 #CHILDREN 
+numsub$q26d <- (q26r12+q26r13+q26r14)/3 #HOT AND SPENDING, USE IT OR LOSE IT
+numsub$q26e <- (q26r15+q26r16+q26r17+q26r18)/4 #BRAND 
+
+#numsub2
+#does not include q24d, q25d, q26c
+numsub2 <- subset(numsub, select=
+                   c("q24a","q24b","q24c",
+                     "q25a","q25b","q25c",
+                     "q26a","q26b","q26d","q26e")) #did not include the negative aspects, as we are looking for 
+```
+
+PC1 accounts for 53.2% of the variance
+PC2 accounts for 13% of the variance 
+74% total variance accounted for in first two principal components 
+```{r PCA for numsub2}
+
+pca <-princomp(numsub2)
+plot(pca$scores[,1],pca$scores[,2])
+
+names(pca)
+names(numsub2)
+head(pca$scores)
+
+str(pca$scores)
+
+#PC1 accounts for 53.2% of the variance
+#PC2 accounts for 13% of the variance 
+#74% total variance accounted for in first two principal components 
+summary(pca)
+
+#PCA Scores as Dataframe
+pcadf <- as.data.frame(pca$scores)
+
+head(pcadf)
+```
+```{r Outliers - PCA (DO NOT USE, LOWER R SCORE)}
+#Observing Outliers in PC1
+sort(pca$scores[,1])
+
+# Sort pca scores, see some outliers and their case ID numbers (identify outliers)
+# There are about 20 outliers when observing PC1 greater than 5 
+#PCA is a method based on correlation/covariance matrix, which can be sensitive to outliers 
+head(sort(pca$scores[,1], decreasing = TRUE), 30)
+
+#view possible outlier 
+numsub["2391",] #answered everything 5 
+numsub["858",] #answered everything 5 
+numsub["132",] #appears to be a genuine completion 
+
+paste('By observing the first two principal components, it is determined that loadings greater than 7 for PC1 will be considered outliers')
+
+outlierdata <- c('1946','243','1204','909','394','2391','858')
+
+#removed 7 rows
+#convert to logical with %in%
+numsub3 <- numsub2[!rownames(numsub2) %in% outlierdata, ]
+head(numsub3)
+```
+
+
+```{r PCA for numsub2 cont}
+#cut dataframe scores for first and second principal component (into 10 buckets)
+pca1 <- cut(pcadf$Comp.1, 10)
+pca2 <- cut(pcadf$Comp.2, 10)
+
+##  Calculate joint counts at cut levels:
+z <- table(pca1, pca2)
+
+
+##  Plot as a 3D histogram:
+hist3D(z=z, border="black")
+
+require(corrplot)
+mcor <- cor(numsub2)
+
+corrplot(mcor, method="shade", shade.col=NA, tl.col="black",tl.cex=0.5)
+
+#correlation matrix
+corrplot(cor(mcor), order='hclust', method = 'circle')
+```
+
+
+Slight elbow evident around 7 to 8 groups 
+```{r  Screeplot for numsub2}
+#wssplot function, numsub2 
+
+wssplot(numsub2)
+
+```
+
+
+**V2**
+There are 39 components because we have 39 variables
+PC1 accounts for 26% of the explained linear variance
+PC2 9.5%
+PC3 5.4% 
+
+Biplot of an initial attempt at PCA for market segmentation scheme 
+Questions on the variable loading arrows in red, and gain insight into the areas where respones cluster (as dense areas of observation points)
+Chart would be more useful if aggregated by clusters 
+
+Pg 203 
+
+arrows show best fit of each of the variables on the principal components 
+a projection of variables onto the 2 dimensional space of first two PCA components 
+explains large part of variation of data 
+Inspect because direction and angle reflects the relationship of the variables
+closer angle indicates higher positive association, while the relative direciotn indicates positive or negative association of the variables 
+
+the biplot helps from the fact that the components are uncorrelated
+this helps disperse the data on the chart because the x adn y axes are independent 
+
+```{r V2 - PRCOMP() PCA}
+my.pca <- prcomp(numsub)
+summary(my.pca)
+head(numsub2)
+biplot(my.pca, cex = .6)
+
+```
+
+Chapman - Ch.11.3 Clustering 
+Page 303
+
+Clustering analysis requires two stages. Find proposed cluster solution and evaluate solution on business needs 
+```{r KMeans 7 Clusters - Derived Data}
+#######################################################
+### Create a Kmeans with 7 clusters with derived data #
+#######################################################
+clusterresults <- kmeans(numsub2,7)
+names(clusterresults)
+
+#Between Sum of Squares / Total Sum of Squares Goodness to Fit 
+#K-Means
+#rsquare 0.554
+rsquare <- clusterresults$betweenss/clusterresults$totss
+rsquare
+
+#K-Means, 7 clusters 
+plot(clusterresults, data=numsub2)
+dev.off()
+
+
+dissE <- daisy(numsub2)
+names(dissE)
+dE2   <- dissE^2
+
+sk2   <- silhouette(clusterresults$cluster, dE2)
+str(sk2)
+plot(sk2)
+```
+
+
+
+```{r Another way to do same thing}
+##### another way to do the same thing ################
+
+newdf <- as.data.frame(clusterresults$cluster)
+pcadf <- as.data.frame(pca$scores)
+
+
+write.csv(newdf, file = "clusterresults.csv")
+write.csv(pcadf, file = "pca.csv")
+
+combdata <- cbind(newdf,pcadf)
+head(combdata)
+
+#xyplot of the 7 groups 
+xyplot(Comp.2 ~ Comp.1, combdata, groups = clusterresults$cluster, pch= 20)
+
+#writing numsub to csv (original dataset)
+write.csv(numsub, file = "numsub.csv")
+```
+
+
+```{r Combined Data - Cluster Profiling}
+################################################################
+### Create a dataset with the original data with the cluster info----
+### This will be useful for creating profiles for the clusters----
+###############################################################
+
+newdf <- read.csv("clusterresults.csv")
+
+combdata <- cbind(numsub2,newdf,numdata$q1,  numdata$q11, numdata$q48, numdata$q49, numdata$q50r1, numdata$q50r2, numdata$q50r3, numdata$q50r4, numdata$q50r5, numdata$q54, numdata$q55, numdata$q56, numdata$q57)
+
+head(combdata)
+
+
+
+require(reshape)
+
+combdata <- rename(combdata, c(clusterresults.cluster="cluster","numdata$q1"="q1","numdata$q48"="q48","numdata$q49"="q49","numdata$q50r1"="q50r1","numdata$q50r2"="q50r2","numdata$q50r3"="q50r3","numdata$q50r4"="q50r4","numdata$q50r5"="q50r5","numdata$q11"="q11","numdata$q54"="q54","numdata$q55"="q55","numdata$q56"="q56","numdata$q57"="q57"))
+
+names(combdata)
+
+#combdata$q57 <- ifelse(is.na(combdata$q57), 2, combdata$q57)
+
+head(combdata)
+
+combdata2 <- combdata[!is.na(combdata$q57), ]
+
+aggregate(combdata2,by=list(byvar=combdata2$cluster), mean)
+
+aggregate(combdata2,by=list(byvar=combdata2$cluster), median)
+
+table <- table(combdata2$q56, combdata2$cluster)
+
+addmargins(table)
+```
+
+
+**Profiling - Visualizations**
+```{r Profiling - Gender, Income, }
+
+#BARPLOT
+color_vector <- c("grey",  "cadetblue1", "cadetblue4", "blue2", "yellow", "green1","orange","pink","green4","yellow","purple")
+
+
+table1 <- table(combdata2$q57, combdata2$cluster)
+
+addmargins(table1)
+
+barplot(height = table1,
+        beside = TRUE, 
+        legend.text = c("Male", "Female"),
+        col = color_vector[1:2],
+        xlab = "Cluster",
+        ylab = "Frequency",
+        main = "Barplot: SEX and CLUSTER",
+        args.legend = list(x = "topright", bty = "n", inset=c(-0.07, -0.15)))
+
+
+```
+
+```{r AGE ~ CLUSTER}
+
+table <- table(combdata2$q1, combdata2$cluster)
+
+addmargins(table)
+
+barplot(height = table,
+        beside = TRUE, 
+        legend.text = c("U18","18-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65+"),
+        col = color_vector,
+        xlab = "Cluster",
+        ylab = "Frequency",
+        main = "Barplot: AGE and CLUSTER",
+        args.legend = list(x = "topright", bty = "n", inset=c(-0.07, -0.15)))
+```
+
+4, 6, 7 have a large proportion of 
+```{r INCOME ~ CLUSTER}
+
+color_vector <- c("grey",  "cadetblue1", "cadetblue4", "blue2", "yellow", "green1","orange","pink","green4","yellow","purple", "red", "blue","green")
+
+table <- table(combdata2$q56, combdata2$cluster)
+
+addmargins(table)
+
+barplot(height = table,
+        beside = TRUE, 
+        legend.text = c("<10","10-14","15-19","20-29","30-39","40-49","50-59","60-69","70-79","80-89","90-99","100-125","125-149","150+"),
+        col = color_vector,
+        xlab = "Cluster",
+        ylab = "Frequency",
+        main = "Barplot: INCOME and CLUSTER",
+        args.legend = list(x = "topright", bty = "n", inset=c(-0.07, -0.15)))
+```
+
+```{r Profile - Income}
+
+table2 <- table(combdata2$q56, combdata2$cluster)
+
+addmargins(table2)
+
+#BOXPLOT 
+boxplot(combdata2$q56 ~ combdata2$cluster, 
+        main= "Income | Clusters",
+        ylim=c(0,17), 
+        col= "grey",
+        xlab = "Cluster",
+        ylab = "Annual Income")
+
+```
+
+```{r EDUCATION ~ CLUSTER}
+
+color_vector <- c("grey",  "cadetblue1", "cadetblue4", "blue2", "yellow", "green1")
+
+table <- table(combdata2$q48, combdata2$cluster)
+
+addmargins(table)
+
+barplot(height = table,
+        beside = TRUE, 
+        legend.text = c("some hs","hs","some college","college","some grad","grad"),
+        col = color_vector,
+        xlab = "Cluster",
+        ylab = "Frequency",
+        main = "Barplot: EDUCATION and CLUSTER",
+        args.legend = list(x = "topright", bty = "n", inset=c(-0.07, -0.15)))
+```
+
+```{r race ~ CLUSTER}
+
+color_vector <- c("grey",  "cadetblue1", "cadetblue4", "blue2", "yellow", "green1")
+
+table <- table(combdata2$q54, combdata2$cluster)
+
+addmargins(table)
+
+barplot(height = table,
+        beside = TRUE, 
+        legend.text = c("white","black","asian","pacific islander","american indian or alaska","other"),
+        col = color_vector,
+        xlab = "Cluster",
+        ylab = "Frequency",
+        main = "Barplot: RACE and CLUSTER",
+        args.legend = list(x = "topright", bty = "n", inset=c(-0.07, -0.15)))
+```
+
+```{r hispanic ~ CLUSTER}
+
+color_vector <- c("grey",  "cadetblue1")
+
+table <- table(combdata2$q55, combdata2$cluster)
+
+addmargins(table)
+
+barplot(height = table,
+        beside = TRUE, 
+        legend.text = c("hispanic","not hispanic"),
+        col = color_vector,
+        xlab = "Cluster",
+        ylab = "Frequency",
+        main = "Barplot: HISPANIC/LATINO and CLUSTER",
+        args.legend = list(x = "topright", bty = "n", inset=c(-0.07, -0.15)))
+```
+
+```{r MARITAL STATUS ~ CLUSTER}
+
+color_vector <- c("grey",  "cadetblue1", "cadetblue4", "blue2")
+
+table <- table(combdata2$q49, combdata2$cluster)
+
+addmargins(table)
+
+barplot(height = table,
+        beside = TRUE, 
+        legend.text = c("married","single","single with a partner","separated/widowed/divorced"),
+        col = color_vector,
+        xlab = "Cluster",
+        ylab = "Frequency",
+        main = "Barplot: MARITAL STATUS and CLUSTER",
+        args.legend = list(x = "topright", bty = "n", inset=c(-0.07, -0.15)))
+```
+
+```{r CHILDREN ~ CLUSTER}
+
+
+children <- subset(combdata2, select=c("cluster", "q50r1","q50r2","q50r3","q50r4","q50r5"))
+aggregate(children,by=list(byvar=children$cluster), sum)
+
+```
+
+
+Chapman - Pg 305 - 11.3.2 
+Groups observations according to similarity 
+Distance-based algorithm operates on a dissimilarity matrix, a N by N matrix
+Reports a metric for the distance between each pair of observations 
+Each observation begins in its own cluster, then joins neighboring observations according to distances until all observations are linked 
+Agglomerative Method = repeatedly joining observations
+
+```{r Hierarchical Clustering}
+## Done with K Means, do the profile  ###
+###############################################
+## Hierarchical Clustering with derived data ##----
+###############################################
+
+numsub.dist = dist(numsub2) #Euclidean distance
+
+require(maptree)
+
+hclustmodel <- hclust(dist(numsub2), method = 'ward.D2')
+names(hclustmodel)
+plot(hclustmodel)
+
+#hclust, k=5
+cut.5 <- cutree(hclustmodel, k=5)
+cut.5
+
+plot(silhouette(cut.5,numsub.dist))
+head(cut.5)
+
+#hclust, k=7
+cut.7 <- cutree(hclustmodel, k=7)
+cut.7
+
+plot(silhouette(cut.7,numsub.dist))
+head(cut.7)
+
+```
+
+
+```{r BSS TSS}
+########################################
+##for hclust how to calculate BSS & TSS----
+######################################
+require(proxy)
+numsubmat <- as.matrix(numsub2)
+overallmean <- matrix(apply(numsubmat,2,mean),nrow=1)
+overallmean
+TSS <- sum(dist(numsubmat,overallmean)^2)
+TSS
+```
+
+7 Clusters
+HClust Goodness of Fit - 0.5163399
+```{r WSS based on 7 clusters, rsquare for hierarchical cluster method}
+####################################
+#Compute WSS based on 7 clusters----
+######################################
+combcutdata <- cbind(numsub2,cut.7)
+head(combcutdata)
+
+require(reshape)
+combcutdata <- rename(combcutdata, c(cut.7="cluster"))
+head(combcutdata)
+#################################################################################
+
+clust1 <- subset(combcutdata, cluster == 1)
+clust1 <- subset(clust1, select=c("q24a","q24b","q24c","q25a","q25b","q25c",
+                                  "q26a","q26b","q26d","q26e"))
+clust1 <- as.matrix(clust1,rowby=T)
+dim(clust1)
+clust1mean <- matrix(apply(clust1,2,mean),nrow=1)
+dim(clust1mean)
+dis1 <- sum(dist(clust1mean,clust1)^2)
+
+#################################################################################
+clust2 <- subset(combcutdata, cluster == 2)
+clust2 <- subset(clust2, select=c("q24a","q24b","q24c","q25a","q25b","q25c",
+                                  "q26a","q26b","q26d","q26e"))
+clust2 <- as.matrix(clust2,rowby=T)
+clust2mean <- matrix(apply(clust2,2,mean),nrow=1)
+dis2 <- sum(dist(clust2mean,clust2)^2)
+
+#################################################################################
+
+clust3 <- subset(combcutdata, cluster == 3)
+clust3 <- subset(clust3, select=c("q24a","q24b","q24c","q25a","q25b","q25c",
+                                  "q26a","q26b","q26d","q26e"))
+clust3 <- as.matrix(clust3,rowby=T)
+clust3mean <- matrix(apply(clust3,2,mean),nrow=1)
+dis3 <- sum(dist(clust3mean,clust3)^2)
+
+#################################################################################
+
+clust4 <- subset(combcutdata, cluster == 4)
+clust4 <- subset(clust4, select=c("q24a","q24b","q24c","q25a","q25b","q25c",
+                                  "q26a","q26b","q26d","q26e"))
+clust4 <- as.matrix(clust4,rowby=T)
+clust4mean <- matrix(apply(clust4,2,mean),nrow=1)
+dis4 <- sum(dist(clust4mean,clust4)^2)
+
+#################################################################################
+
+clust5 <- subset(combcutdata, cluster == 5)
+clust5 <- subset(clust5, select=c("q24a","q24b","q24c","q25a","q25b","q25c",
+                                  "q26a","q26b","q26d","q26e"))
+clust5 <- as.matrix(clust5,rowby=T)
+clust5mean <- matrix(apply(clust5,2,mean),nrow=1)
+dis5 <- sum(dist(clust5mean,clust5)^2)
+
+#################################################################################
+
+clust6 <- subset(combcutdata, cluster == 6)
+clust6 <- subset(clust6, select=c("q24a","q24b","q24c","q25a","q25b","q25c",
+                                  "q26a","q26b","q26d","q26e"))
+clust6 <- as.matrix(clust6,rowby=T)
+clust6mean <- matrix(apply(clust6,2,mean),nrow=1)
+dis6 <- sum(dist(clust6mean,clust6)^2)
+
+#################################################################################
+
+clust7 <- subset(combcutdata, cluster == 7)
+clust7 <- subset(clust7, select=c("q24a","q24b","q24c","q25a","q25b","q25c",
+                                  "q26a","q26b","q26d","q26e"))
+clust7 <- as.matrix(clust7,rowby=T)
+clust7mean <- matrix(apply(clust7,2,mean),nrow=1)
+dis7 <- sum(dist(clust7mean,clust7)^2)
+
+#################################################################################
+
+WSS <- sum(dis1,dis2,dis3,dis4,dis5,dis6,dis7)
+WSS
+
+BSS <- TSS - WSS
+BSS
+## calculating the % of Between SS/ Total SS
+rsquare <- BSS/TSS
+rsquare
+```
+
+```{r average silhouette width }
+#######################################################
+### A little function to calculate the average silhouette width
+### for a variety of choices of k:
+###########################################################
+my.k.choices <- 2:8
+avg.sil.width <- rep(0, times=length(my.k.choices))
+for (ii in (1:length(my.k.choices)) ){
+  avg.sil.width[ii] <- pam(numsub2, k=my.k.choices[ii])$silinfo$avg.width
+}
+print( cbind(my.k.choices, avg.sil.width) )
+```
+
+The silhouette width, s(i), is defined as: s(i) ranges between −1 and 1. Values near 1 indicate that object i is much closer to the other objects in the same cluster than to objects of the second closest cluster, implying a correct classification.
+```{r PAM Method}
+#################################
+# PAM method----
+###############################
+clusterresultsPAM <-pam(numsub2,7)
+
+summary(clusterresultsPAM)
+
+str(clusterresultsPAM$silinfo)
+
+plot(clusterresultsPAM, which.plots=1)
+plot(clusterresultsPAM, which.plots=2)
+
+
+#Comparing Cluster solutions ----
+
+#HClust and PAM
+table(cut.7,clusterresultsPAM$clustering)
+
+#K-Means and PAM
+table(clusterresults$cluster,clusterresultsPAM$clustering)
+
+```
+
+
+```{r Model Based Clustering} 
+###################
+## Model based clustering
+##################
+
+library(mclust)
+fit <- Mclust(numsub2,7)
+plot(fit,data=numsub2, what="density") # plot results
+#plot(fit,data=numsub2, what="BIC") # plot results
+summary(fit) # display the best model
+
+dev.off()
+dissE <- daisy(numsub2)
+names(dissE)
+dE2   <- dissE^2
+sk2   <- silhouette(fit$classification, dE2)
+str(sk2)
+plot(sk2)
+```
+
+```{r Comparison of Cluster Results}
+###############################################
+## comparison of cluster results  #############
+###############################################
+clstat <- cluster.stats(numsub.dist, clusterresults$cluster, clusterresultsPAM$cluster)
+names(clstat)
+clstat$corrected.rand
+
+##corrected or adjusted rand index lies between 0 & 1
+## perfect match between 2 clustering methods means 1, no match means 0
+## any number in between represents 'kind of' % of matched pairs 
+
+clstat <- cluster.stats(numsub.dist, clusterresults$cluster, cut.7)
+clstat$corrected.rand
+```
+
+
+
+
+
+
+
+
+
+
